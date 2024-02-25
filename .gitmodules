@@ -1,0 +1,3 @@
+[submodule "exmaralda-converter"]
+	path = exmaralda-converter
+	url = https://github.com/jeffsthicks/exmaralda-converter
