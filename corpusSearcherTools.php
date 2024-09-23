@@ -5,39 +5,45 @@ function termParser($term){
     $tierArray=explode("&",$term);
     sort($tierArray);
     foreach($tierArray as $tier){
-    if(str_contains($tier,"\$g")){
-            preg_match("~g=([A-Za-z:\.\*_]*)~",$tier,$matches);
-            $parsedTerm = $parsedTerm."<event class=G[^>]*>".$matches[1]."</event>.*";
-        }
-    elseif(str_contains($tier,"\$o")){
-        preg_match("~o=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm."<event class=O[^>]*".$matches[1]."</event>.*";
-    }    
-    elseif(str_contains($tier,"\$cpos")){
+    
+    if(str_contains($tier,"\$cpos")){
         preg_match("~cpos=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm."<event class=commonPOS>".$matches[1]."</event>.*";
+        $parsedTerm = $parsedTerm."<commonPOS>".$matches[1]."<[^~]*";
     }   
     elseif(str_contains($tier,"\$ctok")){
         preg_match("~ctok=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm."<event class=ctok>".$matches[1]."</event>.*";
+        $parsedTerm = $parsedTerm."<ctok>".$matches[1]."<[^~]*";
     }
-    elseif(str_contains($tier,"\$lg")){
-        preg_match("~lg=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm. "<event class=lg-specific POS>".$matches[1]."</event>.*";
+    elseif(str_contains($tier,"\$g")){
+        preg_match("~g=([A-Za-z:\.\*_]*)~",$tier,$matches);
+        $parsedTerm = $parsedTerm."<G[^>]*>".$matches[1]."<[^~]*";
+    }
+    elseif(str_contains($tier,"\$lgPOS")){
+        preg_match("~lgPOS=([A-Za-z:\.\*_]*)~",$tier,$matches);
+        $parsedTerm = $parsedTerm. "<lg-specific POS>".$matches[1]."<[^~]*";
     }
     elseif(str_contains($tier,"\$lem")){
         preg_match("~lem=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm. "<event class=.?lemma>".$matches[1]."</event>.*";
+        $parsedTerm = $parsedTerm. "<.?lemma>".$matches[1]."<[^~]*";
     }
+    elseif(str_contains($tier,"\$o")){
+        preg_match("~o=([A-Za-z:\.\*_]*)~",$tier,$matches);
+        $parsedTerm = $parsedTerm."<O[^>]*".$matches[1]."<[^~]*";
+    }
+    elseif(str_contains($tier,"\$tag")){
+        preg_match("~tag=([A-Za-z:\.\*_]*)~",$tier,$matches);
+        $parsedTerm = $parsedTerm."<tag>".$matches[1]."<[^~]*";
+    }    
     elseif(str_contains($tier,"\$tok")){
         preg_match("~tok=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm. "<event class=tok\*>".$matches[1]."</event>.*";
+        $parsedTerm = $parsedTerm. "<tok>".$matches[1]."<[^~]*";
     }
     elseif(str_contains($tier,"\$th1")){
         preg_match("~th1=([A-Za-z:\.\*_]*)~",$tier,$matches);
-        $parsedTerm = $parsedTerm. "<event class=TH1>".$matches[1]."</event>.*";
+        $parsedTerm = $parsedTerm. "<TH1>".$matches[1]."<[^~]*";
     }
     }
+    $parsedTerm=str_replace(".", "[^~]", $parsedTerm);   
     return $parsedTerm;
 }
 
@@ -59,9 +65,49 @@ function prettyPrint($fileName,$inline,$outline, $concordanceLength=10){
     $output=$output."</td>";
     return $output;
 }
-
-function generateRegex($searchQuery='Default', $capChoice = 'i', $defaultTier = '$th1='){
+function detokenize($text,$tier){
+    $output="";
+    preg_match_all("/<$tier>([^<]*)/",$text,$matches);
+    foreach($matches[1] as $match){
+        $output=$output.$match." ";
+    }
+    #trim(preg_replace('/[:space:]+/', ' ', $output));
+    return $output;
+}
+function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok'){
+    $output="";
+    #echo($regex);
+    preg_match_all($regex,$text,$matches, PREG_OFFSET_CAPTURE);
+    #echo(count($matches[0]));
+    foreach($matches[0] as $match){
+        $matchText= $match[0];
+        $matchLength = strlen($matchText);
+        $offset = $match[1];
+        #echo($matchText."<p>".$matchLength."<p>".$offset);
+        if($exm){
+        $centerString=trim(detokenize($matchText,$tier));
+        $centerString=preg_replace('/[\s]+/', ' ', $centerString);
+        $leftString=substr(detokenize(substr($text,0,$offset),$tier),-30);
+        $leftString=preg_replace('/[\s]+/', ' ', $leftString);
+        $leftString=mb_str_pad(trim($leftString), 30, " " , STR_PAD_LEFT);
+        $rightString=substr(detokenize(substr($text,$offset+$matchLength),$tier),0,40-mb_strlen($centerString));
+        }
+        else{
+        $centerString=trim(($matchText));
+        $centerString=preg_replace('/[\s]+/', ' ', $centerString);
+        $leftString=substr((substr($text,0,$offset)),-30);
+        $leftString=preg_replace('/[\s]+/', ' ', $leftString);
+        $leftString=mb_str_pad(trim($leftString), 30, " " , STR_PAD_LEFT);
+        $rightString=substr(trim(preg_replace('/[\s]+/', ' ',substr($text,$offset+$matchLength))),0,40-mb_strlen($centerString));
+        }
+        $output=$output.('<span>'.$leftString.' </span>'.'<span style="font-weight: bold; color: #3b8695;">'.$centerString.' </span><span>'.$rightString.'</span><br>');   
+    }
+    if($output==""){$output='<span></span>';}
+    echo $output;
+}
     
+
+function generateRegex($searchQuery='Default', $capChoice = 'i', $defaultTier = '$th1=', $sql=false){
 $searchTerms=array();
 $index=0;
 $tempTerms=explode(" ",$searchQuery);
@@ -88,15 +134,18 @@ foreach($tempTerms as $term){
         $with=FALSE;
     }
 }
-
 $searchTerms[$index]=$thisTerm;
-
-$regex="~<timePoint index=([0-9]*)>";
+if($sql==true){$regex="a.TokenSearchable REGEXP BINARY '";}
+else{$regex="/";}
 foreach ($searchTerms as $term){
 #    echo($term);
-    $regex=$regex.".*".termParser($term)."[^\*]*";
+    $regex=$regex."[^~]*".termParser($term)."~";
 }
-$regex=$regex."<timePoint index=([0-9]*)>~".$capChoice;
+if($sql==true){$regex=$regex."'";}
+else{$regex=$regex."/";}
+#clean regex:
+while(str_contains($regex,"[^~]*[^~]*"))
+    {$regex=str_replace("[^~]*[^~]*", "[^~]*", $regex);}
 return $regex;
 }
 ?>
