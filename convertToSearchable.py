@@ -8,8 +8,6 @@ import exmaralda
 
 
 
-inputDirectory="C:/Users/jhicks2/Documents/Nina/SwikoAlex/SWIKOweb/SWIKO-Exchange/written/5_Exmaralda/SWIKO22"
-outputDirectory="searchableFiles"
 
 
 def convert(fileIn):  # This function will output a string with markup formatting which is easier to search by regular expression
@@ -38,6 +36,29 @@ def convert(fileIn):  # This function will output a string with markup formattin
     return(output)
 
 
+replacementRules=[[" .","."],[" ,",","],["//",""],[" '","'"]]
+def readTier(fileIn,category):
+    transcript = exmaralda.ExmaraldaTranscript.load(fileIn)
+
+    for tid in transcript.tiers:
+        if category == transcript.tiers[tid].category:tier=transcript.tiers[tid]
+    tierContent=""
+    try:
+        for index, timePoint in enumerate(transcript.timeline.list):
+            time_id=timePoint.time_id
+            if time_id in tier.event_dict:
+                event=tier.event_dict[time_id]
+                tierContent+=event.content.strip().replace('NA','')+" "
+        
+        for rule in replacementRules:
+            tierContent=tierContent.replace(rule[0],rule[1])
+        tierContent=tierContent.replace(" .",".")
+        tierContent=tierContent.replace(" .",".")
+        tierContent=tierContent.replace("//","")
+    except: ()#print(f"Couldn't read {category} in {fileIn}")
+    return tierContent 
+
+
 
 import mysql.connector
 
@@ -51,7 +72,7 @@ mydb = mysql.connector.connect(
 
 
 
-exchangeDirectory="C:/Users/jhicks2/Documents/Nina/SwikoAlex/SWIKOweb/SWIKO-Exchange/"
+exchangeDirectory="C:/Users/jhicks2/Documents/SWIKO/SWIKOweb/SWIKO-Exchange/"
 
 
 mycursor = mydb.cursor()
@@ -63,35 +84,23 @@ myresult = mycursor.fetchall()
 
 badFileList=[]
 for x in myresult:
-    if (x[1])!=None:    
-        thisFilename  = exchangeDirectory+ re.findall("written.*exb", x[1])[0]
-        #print(thisFilename)
-        try: 
-            searchableText=convert(thisFilename)
-    #       searchableText=searchableText.replace("=tok","=tok*")
-            searchableText=searchableText.replace("'","\\'")
-            #searchableText=searchableText.replace("@","\\@")
-            #print(searchableText)
-            sql = f"UPDATE analysis set TokenSearchable = '{searchableText}' where id = {x[0]} "
-            cursor2.execute(sql)
+    if (x[1])!=None:
+        try:
+            thisFilename  = exchangeDirectory+ re.findall("written.*exb", x[1])[0]
         except:
-            print(f"error on {x[0]}: {thisFilename}... Sorry!")
+            print(f"Ran into a problem: {x[0]}!")
+        try:
+            ctokText=readTier(thisFilename,"ctok")
+            th1Text=readTier(thisFilename,"TH1")
+            lemmaText=readTier(thisFilename,"lemma")
+            searchableText=convert(thisFilename)
+            sql = "UPDATE analysis set TokenSearchable = %s ,ctokText= %s , th1Text = %s ,lemmaText=%s where id = %s"
+            cursor2.execute(sql,(searchableText,ctokText,th1Text,lemmaText,x[0]))
+            #sql = f"UPDATE analysis set ctok = '{ctokText}' where id = {x[0]}"
+            #cursor2.execute(sql)
+        except: 
+           print(f"error on {x[0]}: {thisFilename}... Sorry!")
+        
 
 
-quit()
-
-fileList=os.listdir(inputDirectory)
-badFileList=[]
-for file in fileList:
-    #print(file)
-    try:
-        searchableText=convert(os.path.join(inputDirectory,file))
-        searchableText=searchableText.replace("=tok","=tok*")
-        fileOut=os.path.join(outputDirectory,file[:-4]+".out")
-        with open(fileOut,"w", encoding="utf-8") as outputfile:
-            outputfile.write(searchableText)
-    except:
-        print(f"Could not parse {file} ")
-        badFileList.append(file)
-for file in badFileList: print(file)
 quit()

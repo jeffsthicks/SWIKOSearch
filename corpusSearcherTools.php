@@ -5,7 +5,7 @@ function termParser($term){
     $tierArray=explode("&",$term);
     sort($tierArray);
     foreach($tierArray as $tier){
-    
+    error_log($tier);
     if(str_contains($tier,"\$cpos")){
         preg_match("~cpos=([A-Za-z:\.\*_]*)~",$tier,$matches);
         $parsedTerm = $parsedTerm."<commonPOS>".$matches[1]."<[^~]*";
@@ -71,11 +71,21 @@ function detokenize($text,$tier){
     foreach($matches[1] as $match){
         $output=$output.$match." ";
     }
+    $output=preg_replace("/ ([,.')])/","$1",$output);
     #trim(preg_replace('/[:space:]+/', ' ', $output));
     return $output;
 }
-function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok'){
+function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok',$caseTerm=''){
     $output="";
+    if(($caseTerm=='')){
+        $caseFlag="i";
+    }  
+    else{
+        $caseFlag="";
+    }
+    $regex.=$caseFlag;
+#    error_log($regex);
+    $text=str_replace("\\","",$text);
     #echo($regex);
     preg_match_all($regex,$text,$matches, PREG_OFFSET_CAPTURE);
     #echo(count($matches[0]));
@@ -87,18 +97,18 @@ function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok'){
         if($exm){
         $centerString=trim(detokenize($matchText,$tier));
         $centerString=preg_replace('/[\s]+/', ' ', $centerString);
-        $leftString=substr(detokenize(substr($text,0,$offset),$tier),-30);
+        $leftString=mb_substr(detokenize(substr($text,0,$offset),$tier),-30);
         $leftString=preg_replace('/[\s]+/', ' ', $leftString);
         $leftString=mb_str_pad(trim($leftString), 30, " " , STR_PAD_LEFT);
-        $rightString=substr(detokenize(substr($text,$offset+$matchLength),$tier),0,40-mb_strlen($centerString));
+        $rightString=mb_substr(detokenize(substr($text,$offset+$matchLength),$tier),0,40-mb_strlen($centerString));
         }
         else{
         $centerString=trim(($matchText));
         $centerString=preg_replace('/[\s]+/', ' ', $centerString);
-        $leftString=substr((substr($text,0,$offset)),-30);
+        $leftString=mb_substr((substr($text,0,$offset)),-30);
         $leftString=preg_replace('/[\s]+/', ' ', $leftString);
         $leftString=mb_str_pad(trim($leftString), 30, " " , STR_PAD_LEFT);
-        $rightString=substr(trim(preg_replace('/[\s]+/', ' ',substr($text,$offset+$matchLength))),0,40-mb_strlen($centerString));
+        $rightString=mb_substr(trim(preg_replace('/[\s]+/', ' ',substr($text,$offset+$matchLength))),0,40-mb_strlen($centerString));
         }
         $output=$output.('<span>'.$leftString.' </span>'.'<span style="font-weight: bold; color: #3b8695;">'.$centerString.' </span><span>'.$rightString.'</span><br>');   
     }
@@ -107,7 +117,7 @@ function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok'){
 }
     
 
-function generateRegex($searchQuery='Default', $capChoice = 'i', $defaultTier = '$th1=', $sql=false){
+function generateRegex($searchQuery='Default', $capChoice = '', $defaultTier = '$th1=', $sql=false){
 $searchTerms=array();
 $index=0;
 $tempTerms=explode(" ",$searchQuery);
@@ -135,7 +145,7 @@ foreach($tempTerms as $term){
     }
 }
 $searchTerms[$index]=$thisTerm;
-if($sql==true){$regex="a.TokenSearchable REGEXP BINARY '";}
+if($sql==true){$regex="a.TokenSearchable REGEXP $capChoice '";}
 else{$regex="/";}
 foreach ($searchTerms as $term){
 #    echo($term);
