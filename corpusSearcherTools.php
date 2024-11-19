@@ -75,7 +75,7 @@ function detokenize($text,$tier){
     #trim(preg_replace('/[:space:]+/', ' ', $output));
     return $output;
 }
-function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok',$caseTerm=''){
+function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok',$caseTerm='',$displayType=''){
     $output="";
     if(($caseTerm=='')){
         $caseFlag="i";
@@ -110,7 +110,12 @@ function prettierPrint($text,$regex,$exm=TRUE,$tier='ctok',$caseTerm=''){
         $leftString=mb_str_pad(trim($leftString), 30, " " , STR_PAD_LEFT);
         $rightString=mb_substr(trim(preg_replace('/[\s]+/', ' ',substr($text,$offset+$matchLength))),0,40-mb_strlen($centerString));
         }
-        $output=$output.('<span>'.$leftString.' </span>'.'<span style="font-weight: bold; color: #3b8695;">'.$centerString.' </span><span>'.$rightString.'</span><br>');   
+        if($displayType=="concordance"){
+            $output=$output.('<div class="divTableRow" style="background: #FFFFFF; margin=3px;"><div class="divTableCell concordance"><span>'.$leftString.' </span>'.'<span style="font-weight: bold; color: #3b8695;">'.$centerString.' </span><span>'.$rightString.'</span></div></div>'); 
+        }
+        else{
+            $output=$output.('<span>'.$leftString.' </span>'.'<span style="font-weight: bold; color: #3b8695;">'.$centerString.' </span><span>'.$rightString.'</span><br>'); 
+        }  
     }
     if($output==""){$output='<span></span>';}
     echo $output;
